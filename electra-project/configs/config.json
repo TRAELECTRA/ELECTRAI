@@ -12,4 +12,5 @@
     "layer_norm_eps": 1e-12,
     "pad_token_id": 0,
     "n_segments":  2,
+    "label_num": 3
 }
