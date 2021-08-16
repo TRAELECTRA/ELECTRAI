@@ -11,22 +11,25 @@ import torch
 import torch.nn as nn
 import torch.nn.functional as F
 from fastprogress.fastprogress import master_bar, progress_bar
-from transformers import ElectraModel, ElectraTokenizer, AdamW
+from torch.nn import CrossEntropyLoss
+from torch.utils.data import DataLoader, SequentialSampler, RandomSampler
+from transformers import ElectraModel, ElectraTokenizer, AdamW, get_linear_schedule_with_warmup, ElectraConfig
 
 from processor.dataloader import (
-    NaverNERProcessor, 
-    ner_convert_examples_to_features, 
-    ner_load_and_cache_examples
-)
-from processor.dataloader import ner_processors as processors
-from src import (
-    CONFIG_CLASS,
-    TOKENIZER_CLASSES,
-    MODEL_FOR_TOKEN_CLASSIFICATION,
+    NaverNerProcessor,
+    ner_convert_examples_to_features,
+    ner_tasks_num_labels as tasks_num_labels,
+    ner_load_and_cache_examples as load_and_cache_examples
 )
 
-model = ElectraModel.from_pretrained("monologg/koelectra-base-v3-discriminator")
-tokenizer = ElectraTokenizer.from_pretrained("monologg/koelectra-base-v3-discriminator")
+from processor.dataloader import ner_processors as processors
+from src import (
+    CONFIG_CLASSES,
+    TOKENIZER_CLASSES,
+    MODEL_FOR_TOKEN_CLASSIFICATION, compute_metrics, show_ner_report,
+)
+
+
 logger = logging.getLogger(__name__)
 
 
@@ -76,26 +79,34 @@ def train(args,
           test_dataset=None):
 
 
-    train_dataloader = DataLoader(train_dataset, batch_size=args.batch_size)
-
+    # train_dataloader = DataLoader(train_dataset, batch_size=args.batch_size)
+    train_sampler = RandomSampler(train_dataset)
+    train_dataloader = DataLoader(train_dataset, sampler=train_sampler, batch_size=args.train_batch_size)
+    if args.max_steps > 0:
+        t_total = args.max_steps
+        args.num_train_epochs = args.max_steps // (len(train_dataloader) // args.gradient_accumulation_steps) + 1
+    else:
+        t_total = len(train_dataloader) // args.gradient_accumulation_steps * args.num_train_epochs
     no_decay = ['bias', 'LayerNorm.weight']
     optimizer_grouped_parameters = [
         {'params': [p for n, p in model.named_parameters() if not any(nd in n for nd in no_decay)],
          'weight_decay': args.weight_decay},
         {'params': [p for n, p in model.named_parameters() if any(nd in n for nd in no_decay)], 'weight_decay': 0.0}
     ]
-    optimizer = AdamW(optimizer_grouped_parameters, lr=args.learning_rate, ops=args.adam_epsilon)
+    optimizer = AdamW(optimizer_grouped_parameters, lr=args.learning_rate, eps=args.adam_epsilon)
+    scheduler = get_linear_schedule_with_warmup(optimizer, num_warmup_steps=int(t_total * args.warmup_proportion),
+                                                num_training_steps=t_total)
 
-
-    if os.path.isfile(os.model_path, "optimizer.pt") and \
+    if os.path.isfile(os.path.join(args.model_path, "optimizer.pt")) and \
             os.path.isfile(os.path.join(args.model_path, "scheduler.pt")):
         optimizer.load_state_dict(torch.load(os.path.join(args.model_path, "optimizer.pt")))
         scheduler.load_state_dict(torch.load(os.path.join(args.model_path, "scheduler.pt")))
 
     logger.info("********** Running training **********")
-    logger.info(f"Num Epochs = {args.n_epoch}")
+    logger.info(f"Num Epochs = {args.num_train_epochs}")
 
     tr_loss = 0.0
+    global_step = 0
 
     model.zero_grad()
 
@@ -245,34 +256,19 @@ def evaluate(args, model, eval_dataset, mode, global_step=None):
 
 
 
-def main_finetune():
+def main_finetune(args):
     # argparse configs/config.json
-    args = None
+    #args = None
     # data file load and data processing (dataloader 등)
 
-    processor = NaverNERProcessor(args)
+    processor = NaverNerProcessor(args)
     labels = processor.get_labels()
 
     config = ElectraConfig.from_pretrained("monologg/koelectra-base-v3-discriminator")
     model = ElectraModel.from_pretrained("monologg/koelectra-base-v3-discriminator")
     tokenizer = ElectraTokenizer.from_pretrained("monologg/koelectra-base-v3-discriminator")
 
-    args.device = "cuda" if torch.cuda.is_available() and not args.no_cuda else "cpu"
-    model.to(args.device)
-
-    # 학습
-    '''
-
-    for e in epoch:
-        for i, batch in enumerate(dataloader): >> 데이터를 먼저 만들고 정해야됨
-            # train
-
-            # 특정 step에서 valid(evaluate)
-             성능이 좋은 top-k개의 모델 저장
-
-    '''
-
-    with open(os.path("../config.json")) as f :
+    with open(os.path.join(args.config_dir, args.config_file)) as f:
         args = AttrDict(json.load(f))
 
     logger.info("Training/Evaluation prarams {}".format(args))
@@ -345,7 +341,7 @@ def main_finetune():
 if __name__ == '__main__':
     parser = argparse.ArgumentParser()
     parser.add_argument("--task", type=str, required=True)
-    parser.add_argument("--config_dir", type=str, default="config")
+    parser.add_argument("--config_dir", type=str, default="configs")
     parser.add_argument("--config_file", type=str, required=True)
     parser = parser.parse_args()
 

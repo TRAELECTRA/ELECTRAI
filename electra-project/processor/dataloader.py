@@ -59,7 +59,7 @@ def ner_convert_examples_to_features(
         args,
         examples,
         tokenizer,
-        max_seq_length,
+        max_seq_len,
         task,
         pad_token_label_id=-100,
 ):
@@ -83,9 +83,9 @@ def ner_convert_examples_to_features(
             label_ids.extend([label_map[label]] + [pad_token_label_id] * (len(word_tokens) - 1))
 
         special_tokens_count = 2
-        if len(tokens) > max_seq_length - special_tokens_count:
-            tokens = tokens[:(max_seq_length - special_tokens_count)]
-            label_ids = label_ids[:(max_seq_length - special_tokens_count)]
+        if len(tokens) > max_seq_len - special_tokens_count:
+            tokens = tokens[:(max_seq_len - special_tokens_count)]
+            label_ids = label_ids[:(max_seq_len - special_tokens_count)]
 
         # Add [SEP]
         tokens += [tokenizer.sep_token]
@@ -101,16 +101,16 @@ def ner_convert_examples_to_features(
 
         attention_mask = [1] * len(input_ids)
 
-        padding_length = max_seq_length - len(input_ids)
+        padding_length = max_seq_len - len(input_ids)
         input_ids += [tokenizer.pad_token_id] * padding_length
         attention_mask += [0] * padding_length
         token_type_ids += [0] * padding_length
         label_ids += [pad_token_label_id] * padding_length
 
-        assert len(input_ids) == max_seq_length
-        assert len(attention_mask) == max_seq_length
-        assert len(token_type_ids) == max_seq_length
-        assert len(label_ids) == max_seq_length
+        assert len(input_ids) == max_seq_len
+        assert len(attention_mask) == max_seq_len
+        assert len(token_type_ids) == max_seq_len
+        assert len(label_ids) == max_seq_len
 
         if ex_index < 5:
             logger.info("*** Example ***")
@@ -152,12 +152,13 @@ class NaverNerProcessor(object):
         """Creates examples for the training and dev sets."""
         examples = []
         for (i, data) in enumerate(dataset):
-            """이 부분에서 코드 수정. 숫자 단어 고유어여부순"""
-            _, words, labels = data.split()
-            label = labels.split('_')[1] if '_' in labels else '0'
-
+            words, labels = data.split('\t')
+            words = words.split()
+            labels = labels.split()
+            labels = [lable.split("_")[1] if "_" in lable else '0' for lable in labels]
             guid = "%s-%s" % (set_type, i)
-            examples.append()
+
+            assert len(words) == len(labels)
 
             if i % 10000 == 0:
                 logger.info(data)
@@ -181,7 +182,6 @@ class NaverNerProcessor(object):
                                                         self.args.task,
                                                         file_to_read)))
         return self._create_examples(self._read_file(os.path.join(self.args.data_dir,
-                                                                  self.args.task,
                                                                   file_to_read)), mode)
 
 
@@ -225,7 +225,7 @@ def ner_load_and_cache_examples(args, tokenizer, mode):
             args,
             examples,
             tokenizer,
-            max_seq_length=args.max_seq_len,
+            max_seq_len=args.max_seq_len,
             task=args.task,
             pad_token_label_id=pad_token_label_id
         )
