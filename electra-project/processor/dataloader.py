@@ -159,7 +159,7 @@ class NaverNerProcessor(object):
             guid = "%s-%s" % (set_type, i)
 
             assert len(words) == len(labels)
-ㄴ
+
             if i % 10000 == 0:
                 logger.info(data)
             examples.append(InputExample(guid=guid, words=words, labels=labels))
