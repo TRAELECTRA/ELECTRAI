@@ -406,7 +406,7 @@ class HanBertTokenizer(PreTrainedTokenizer):
             mask_token=mask_token,
             **kwargs
         )
-        self.model_max_length = 512  # hard-coded
+        self.model_max_len = 512  # hard-coded
 
         if not os.path.isfile(vocab_file):
             raise ValueError(

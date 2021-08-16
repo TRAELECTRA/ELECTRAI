@@ -1,7 +1,7 @@
 {
     "task": "naver-ner",
     "data_dir": "data",
-    "output_dir": "kobert-naver-ner-ckpt",
+    "output_dir": "koelectra-small-v3-naver-ner-ckpt",
     "train_file": "train.tsv",
     "dev_file": "",
     "test_file": "test.tsv",
@@ -11,34 +11,25 @@
     "do_lower_case": false,
     "do_train": true,
     "do_eval": true,
+    "device": "cpu",
 
-    "train_batch": 32,
-    "eval_batch": 128,
-    "train_epoch": 30,
+    "train_batch_size": 32,
+    "eval_batch_size": 128,
+    "num_train_epochs": 30,
     "weight_decay": 0.0,
     "gradient_accumulation_steps": 32,
     "adam_epsilon": 1e-8,
     "warmup_proportion": 0.01,
+    "max_seq_len": 128,
     "max_steps": -1,
     "max_grad_norm": 1.0,
     "no_cuda": true,
-    "model_type": "kobert",
+    "model_path": "koelectra-small-v3-model",
+    "model_name_or_path": "monologg/koelectra-small-v3-discriminator",
+    "model_type": "koelectra-small-v3",
     "logging_steps": 1000,
     "save_steps": 1000,
-    "learning_rate": 5e-5,
-
-    "max_len": 128,
-    "model_dim": 768,
-    "hidden_dim": 768,
-    "n_head": 12,
-    "layer_num": 12,
-    "dropout": 0.2,
-    "ff_dim": 3072,
-    "vocab_size": 32200,
-    "layer_norm_eps": 1e-12,
-    "pad_token_id": 0,
-    "n_segments": 2,
-    "label_num": 3
+    "learning_rate": 5e-5
 }
 
 
