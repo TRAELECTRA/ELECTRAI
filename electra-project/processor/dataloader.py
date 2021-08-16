@@ -152,12 +152,13 @@ class NaverNerProcessor(object):
         """Creates examples for the training and dev sets."""
         examples = []
         for (i, data) in enumerate(dataset):
-            """이 부분에서 코드 수정. 숫자 단어 고유어여부순"""
-            _, words, labels = data.split()
-            label = labels.split('_')[1] if '_' in labels else '0'
-
+            words, labels = data.split('\t')
+            words = words.split()
+            labels = labels.split()
+            labels = [lable.split("_")[1] if "_" in lable else '0' for lable in labels]
             guid = "%s-%s" % (set_type, i)
-            examples.append()
+
+            assert len(words) == len(labels)
 
             if i % 10000 == 0:
                 logger.info(data)
